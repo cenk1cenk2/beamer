@@ -17,4 +17,15 @@ Beam a configuration up to a container.
 
 | Flag / Environment |  Description   |  Type    | Required | Default |
 |---------------- | --------------- | --------------- |  --------------- |  --------------- |
-| `$VIZIER_CONFIG_FILE` | Configuration file to read from. | `String`<br/>`json(https://raw.githubusercontent.com/cenk1cenk2/docker-vizier/main/schema.json)` | `false` |  |
+| `$BEAMER_MODE` | Mode to use. | `String`<br/>`enum(git)` | `false` | git |
+| `$BEAMER_WORKING_DIRECTORY` | Working directory for cloning the data. | `String` | `false` | /tmp/beamer |
+
+**Git**
+
+| Flag / Environment |  Description   |  Type    | Required | Default |
+|---------------- | --------------- | --------------- |  --------------- |  --------------- |
+| `$BEAMER_GIT_REPOSITORY` | Git repository to clone. | `String` | `false` |  |
+| `$BEAMER_GIT_BRANCH` | Git branch to clone. | `String` | `false` |  |
+| `$BEAMER_GIT_AUTH_METHOD` | Authentication method to use. | `String`<br/>`enum(none, ssh)` | `false` | none |
+| `$BEAMER_GIT_PRIVATE_KEY` | Private key to use for SSH authentication. | `String` | `false` |  |
+| `$BEAMER_GIT_PRIVATE_KEY_PASSWORD` | Password for the private key. | `String` | `false` |  |

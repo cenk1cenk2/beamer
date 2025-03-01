@@ -6,7 +6,22 @@ import (
 
 type (
 	Pipe struct {
-		File string
+		Ctx    Ctx
+		Config Config
+		Git    Git
+	}
+
+	Config struct {
+		Mode             string `validate:"required,oneof=git"`
+		WorkingDirectory string
+	}
+
+	Git struct {
+		AuthMethod            string `validate:"oneof=none ssh"`
+		Repository            string `validate:"required"`
+		Branch                string
+		SshPrivateKey         string `validate:"required_if=Inner.AuthMethod ssh"`
+		SshPrivateKeyPassword string
 	}
 )
 
@@ -19,8 +34,10 @@ func New(p *Plumber) *TaskList[Pipe] {
 		SetRuntimeDepth(1).
 		ShouldRunBefore(func(tl *TaskList[Pipe]) error {
 			return ProcessFlags(tl)
+		}).
+		Set(func(tl *TaskList[Pipe]) Job {
+			return tl.JobSequence(
+				WorkflowGit(tl).Job(),
+			)
 		})
-	// Set(func(tl *TaskList[Pipe]) Job {
-	// 	return StepGenerator(tl)
-	// })
 }

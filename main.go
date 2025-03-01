@@ -15,10 +15,6 @@ func main() {
 				Usage:       DESCRIPTION,
 				Description: DESCRIPTION,
 				Flags:       p.AppendFlags(pipe.Flags),
-				Before: func(_ *cli.Context) error {
-					p.EnableTerminator()
-					return nil
-				},
 				Action: func(ctx *cli.Context) error {
 					return pipe.TL.RunJobs(
 						pipe.New(p).SetCliContext(ctx).Job(),

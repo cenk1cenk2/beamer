@@ -27,3 +27,6 @@ go.work
 
 /vendor
 /.task
+/volumes
+/dist
+/.env*
