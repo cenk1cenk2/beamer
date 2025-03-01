@@ -1,0 +1,45 @@
+---
+# https://taskfile.dev
+
+version: "3"
+
+vars:
+  GO_LD_FLAGS: -w -s
+  BINARY_DIR: dist
+  BINARY_NAME: pipe
+
+includes:
+  go:
+    taskfile: https://gitlab.kilic.dev/libraries/taskfiles/-/raw/main/Taskfile.go-application.yml?ref_type=heads
+    flatten: true
+
+tasks:
+  help:
+    desc: Generates help for the application.
+    cmds:
+      - go run . --help
+
+  docs:
+    desc: Generates the documentation for the application.
+    interactive: true
+    env:
+      LOG_LEVEL: trace
+    cmds:
+      - go run . MARKDOWN_DOC
+      - go run . MARKDOWN_EMBED
+
+  docker.build:
+    desc: Builds the docker container for the application for testing.
+    cmds:
+      - docker-compose build
+    sources:
+      - "dist/**"
+      - "Dockerfile*"
+      - "docker-compose*.yml"
+
+  docker.up:
+    desc: Runs the docker-compose application.
+    interactive: true
+    cmds:
+      - task: build
+      - task: docker.build
