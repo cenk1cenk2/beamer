@@ -1,10 +1,8 @@
-package services
+package internal
 
 import (
-	"errors"
-	"os"
-
 	"github.com/sirupsen/logrus"
+	"gitlab.kilic.dev/docker/beamer/internal/operations"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
 )
 
@@ -26,20 +24,20 @@ func NewState(ctx *ServiceCtx, file string) *State {
 func (s *State) Read() ([]byte, error) {
 	s.log.Debugf("Reading state: %s", s.file)
 
-	f, err := os.ReadFile(s.file)
-	if errors.Is(err, os.ErrNotExist) {
+	f := operations.NewFile(s.file)
+	if !f.Exists() {
 		return nil, nil
-	} else if err != nil {
-		return nil, err
 	}
 
-	return f, err
+	return f.ReadFile()
 }
 
 func (s *State) Write(data []byte) error {
 	s.log.Debugf("Writing state: %s", s.file)
 
-	return os.WriteFile(s.file, data, 0600)
+	f := operations.NewFile(s.file)
+
+	return f.WriteFile(data, 0600)
 }
 
 func (s *State) SetDirty() {

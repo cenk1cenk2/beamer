@@ -13,7 +13,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/urfave/cli/v2"
-	services "gitlab.kilic.dev/docker/beamer/internal"
+	"gitlab.kilic.dev/docker/beamer/internal"
+	"gitlab.kilic.dev/docker/beamer/internal/operations"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
 )
 
@@ -88,7 +89,7 @@ type GitAdapterConfig struct {
 }
 
 type GitAdapter struct {
-	ctx              *services.ServiceCtx
+	ctx              *internal.ServiceCtx
 	tl               *TaskList[any]
 	repository       *git.Repository
 	authMethod       transport.AuthMethod
@@ -103,7 +104,7 @@ type GitAdapterState struct {
 
 var _ Adapter = (*GitAdapter)(nil)
 
-func NewGitAdapter(p *Plumber, ctx *services.ServiceCtx) (*GitAdapter, error) {
+func NewGitAdapter(p *Plumber, ctx *internal.ServiceCtx) (*GitAdapter, error) {
 	log := ctx.Log.WithField(LOG_FIELD_CONTEXT, "adapter").WithField(LOG_FIELD_STATUS, "git")
 
 	adapter := &GitAdapter{
@@ -116,8 +117,9 @@ func NewGitAdapter(p *Plumber, ctx *services.ServiceCtx) (*GitAdapter, error) {
 	switch gitAdapterFlags.AuthMethod {
 	case BEAMER_GIT_AUTH_METHOD_SSH:
 		var key []byte
-		if stat, err := os.Stat(gitAdapterFlags.SshPrivateKey); err == nil && !stat.IsDir() {
-			k, err := os.ReadFile(gitAdapterFlags.SshPrivateKey)
+
+		if f := operations.NewFile(gitAdapterFlags.SshPrivateKey); f.IsFile() {
+			k, err := f.ReadFile()
 			if err != nil {
 				return nil, err
 			}
@@ -305,26 +307,26 @@ func (a *GitAdapter) Finalize() Job {
 								return err
 							}
 
-							target := filepath.Join(a.ctx.TargetDirectory, path)
+							tf := operations.NewFile(filepath.Join(a.ctx.TargetDirectory, path))
 
-							err = os.Remove(target)
+							err = tf.Remove()
 							if err != nil {
 								t.Log.Warnf("File already did not exists: %s", path)
 							} else {
 								t.Log.Warnf("File deleted: %s", path)
 							}
 
-							ls, err := os.ReadDir(filepath.Dir(target))
+							ls, err := tf.ReadDir()
 							if err != nil {
 								return err
 							}
 							if len(ls) == 0 && a.ctx.Flags.SyncDeleteEmptyDirectories {
-								err = os.Remove(filepath.Dir(target))
+								err = os.Remove(tf.Cwd())
 								if err != nil {
 									return err
 								}
 
-								t.Log.Warnf("Empty directory deleted: %s", filepath.Dir(target))
+								t.Log.Warnf("Empty directory deleted: %s", tf.Cwd())
 							}
 						}
 					}

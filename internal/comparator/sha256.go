@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"io"
-	"os"
+
+	"gitlab.kilic.dev/docker/beamer/internal/operations"
 )
 
 type FileComparatorSha256 struct{}
@@ -15,10 +16,22 @@ func NewFileComparatorSha256() *FileComparatorSha256 {
 	return &FileComparatorSha256{}
 }
 
-func (f *FileComparatorSha256) CompareFiles(f1 *os.File, f2 *os.File) (bool, error) {
-	if f1 == nil || f2 == nil {
+func (f *FileComparatorSha256) CompareFiles(a *operations.File, b *operations.File) (bool, error) {
+	if a == nil || b == nil {
 		return false, nil
 	}
+
+	f1, err := a.OpenFile()
+	if err != nil {
+		return false, err
+	}
+	defer f1.Close()
+
+	f2, err := b.OpenFile()
+	if err != nil {
+		return false, err
+	}
+	defer f2.Close()
 
 	h1 := sha256.New()
 	if _, err := io.Copy(h1, f1); err != nil {

@@ -1,16 +1,13 @@
 package pipe
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 
 	glob "github.com/bmatcuk/doublestar/v4"
+	"gitlab.kilic.dev/docker/beamer/internal/operations"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
 	"golang.org/x/sync/errgroup"
 )
@@ -18,27 +15,23 @@ import (
 func Workflow(tl *TaskList[Pipe]) *Task[Pipe] {
 	return tl.CreateTask("workflow").
 		ShouldDisable(func(t *Task[Pipe]) bool {
-			return !t.Pipe.Ctx.Fetch.Dirty && !t.Pipe.Config.ForceWorkflow
+			return !t.Pipe.Ctx.State.IsDirty() && !t.Pipe.Config.ForceWorkflow
 		}).
 		Set(func(t *Task[Pipe]) error {
-			source := filepath.Join(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory)
-
-			t.Log.Debugf("Walking from directory: %s", source)
-
-			ignored, err := parseIgnoreFile(t, filepath.Join(source, t.Pipe.Config.IgnoreFile))
+			ignored, err := parseIgnoreFile(t)
 			if err != nil {
 				return err
 			}
 			t.Log.Debugf("Ignoring patterns: %v", ignored)
 
-			files, err := walkdir(t, source, ignored)
+			files, err := walkdir(t, ignored)
 			if err != nil {
 				return err
 			}
 			t.Log.Debugf("Files to process: %v", files)
 
 			// create directories
-			if err := ensureDirs(t, source, files); err != nil {
+			if err := ensureDirs(t, files); err != nil {
 				return err
 			}
 
@@ -47,7 +40,7 @@ func Workflow(tl *TaskList[Pipe]) *Task[Pipe] {
 			g := errgroup.Group{}
 			for _, path := range files {
 				g.Go(func() error {
-					return processFile(t, source, path)
+					return processFile(t, path)
 				})
 			}
 
@@ -60,47 +53,44 @@ func Workflow(tl *TaskList[Pipe]) *Task[Pipe] {
 		})
 }
 
-func parseIgnoreFile(t *Task[Pipe], file string) ([]string, error) {
+func parseIgnoreFile(t *Task[Pipe]) ([]string, error) {
 	ignored := []string{
 		fmt.Sprintf("**/%s", t.Pipe.Config.IgnoreFile),
 		".git/**",
 	}
 
-	if file == "" {
-		return []string{}, nil
+	if t.Pipe.Config.IgnoreFile == "" {
+		return ignored, nil
 	}
 
-	stat, err := os.Stat(file)
+	f := operations.NewFile(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory, t.Pipe.Config.IgnoreFile)
 
-	if err != nil || stat.IsDir() {
-		t.Log.Debugf("Ignore file not found: %s", file)
+	if !f.IsFile() {
+		t.Log.Debugf("Ignore file not found: %s", f.Abs())
 
 		return ignored, nil
 	}
 
-	f, err := os.Open(file)
+	lines, err := f.ReadLines()
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			ignored = append(ignored, line)
-		}
-	}
+	ignored = append(ignored, lines...)
 
 	return ignored, nil
 }
 
-func walkdir(t *Task[Pipe], source string, ignored []string) ([]string, error) {
+func walkdir(t *Task[Pipe], ignored []string) ([]string, error) {
 	files := []string{}
+
+	f := operations.NewFile(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory)
+
+	t.Log.Debugf("Walking from source directory: %s", f.Abs())
 
 	g := errgroup.Group{}
 	err := filepath.WalkDir(
-		source,
+		f.Abs(),
 		func(abs string, d fs.DirEntry, e error) error {
 			if e != nil {
 				return fmt.Errorf("Error walking: %s -> %w", abs, e)
@@ -108,7 +98,9 @@ func walkdir(t *Task[Pipe], source string, ignored []string) ([]string, error) {
 				return nil
 			}
 
-			path, err := filepath.Rel(t.Pipe.WorkingDirectory, abs)
+			f := operations.NewFile(abs)
+
+			path, err := f.RelTo(t.Pipe.WorkingDirectory)
 			if err != nil {
 				return err
 			}
@@ -141,7 +133,7 @@ func walkdir(t *Task[Pipe], source string, ignored []string) ([]string, error) {
 	return files, nil
 }
 
-func ensureDirs(t *Task[Pipe], source string, files []string) error {
+func ensureDirs(t *Task[Pipe], files []string) error {
 	g := errgroup.Group{}
 
 	dirs := []string{}
@@ -153,77 +145,52 @@ func ensureDirs(t *Task[Pipe], source string, files []string) error {
 
 	for _, dir := range dirs {
 		g.Go(func() error {
-			path := filepath.Join(t.Pipe.TargetDirectory, dir)
+			source := operations.NewFile(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory, dir)
+			target := operations.NewFile(t.Pipe.TargetDirectory, dir)
 
-			stat, err := os.Stat(filepath.Join(source, dir))
-			if err != nil {
-				return fmt.Errorf("Can not get the stat of the source directory: %s -> %w", filepath.Join(source, dir), err)
+			if !source.IsDir() {
+				return fmt.Errorf("Source is not a directory anymore: %s", source.Abs())
+			} else if target.IsDir() {
+				t.Log.Debugf("Directory already exists in target: %s", target.Abs())
+
+				return nil
 			}
-			perm := stat.Mode().Perm()
 
-			t.Log.Debugf("Directory needed in target: %s with %s in %s", dir, perm, t.Pipe.TargetDirectory)
-
-			err = os.MkdirAll(path, perm)
+			stat, err := source.Stat()
 			if err != nil {
 				return err
 			}
 
-			return nil
+			t.Log.Debugf("Directory needed in target: %s with %s in %s", target.Rel(), stat, target.Cwd())
+
+			return target.Mkdirp(stat.Mode())
 		})
 	}
 
 	return g.Wait()
 }
 
-func processFile(t *Task[Pipe], source string, path string) error {
+func processFile(t *Task[Pipe], path string) error {
 	t.Log.Debugf("Processing: %s", path)
 
-	tf := filepath.Join(t.Pipe.TargetDirectory, path)
-	sf := filepath.Join(source, path)
+	sf := operations.NewFile(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory, path)
+	tf := operations.NewFile(t.Pipe.TargetDirectory, path)
 
-	ss, err := os.Stat(tf)
-	if err == nil && ss.IsDir() {
+	if sf.IsDir() {
 		return fmt.Errorf("Target is a directory: %s", path)
 	}
 
 	// nolint: nestif
-	if errors.Is(err, os.ErrNotExist) {
+	if !tf.Exists() {
 		t.Log.Debugf("File already does not exists copying to target: %s", tf)
 
-		src, err := os.Open(sf)
-		if err != nil {
+		if err := sf.CopyTo(tf); err != nil {
 			return err
 		}
-		defer src.Close()
-
-		dest, err := os.Create(tf)
-		if err != nil {
-			return err
-		}
-		defer dest.Close()
-
-		_, err = io.Copy(dest, src)
-		if err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
 	} else {
 		t.Log.Debugf("File already exists: %s", tf)
 
-		f1, err := os.Open(tf)
-		if err != nil {
-			return err
-		}
-		defer f1.Close()
-
-		f2, err := os.Open(sf)
-		if err != nil {
-			return err
-		}
-		defer f2.Close()
-
-		equal, err := t.Pipe.Ctx.FileComparator.CompareFiles(f1, f2)
+		equal, err := t.Pipe.Ctx.FileComparator.CompareFiles(sf, tf)
 		if err != nil {
 			return err
 		}
@@ -233,30 +200,17 @@ func processFile(t *Task[Pipe], source string, path string) error {
 		} else {
 			t.Log.Infof("File has changed, updating: %s -> %s", path, tf)
 
-			src, err := os.Open(sf)
-			if err != nil {
-				return err
-			}
-			defer src.Close()
-
-			dest, err := os.Create(tf)
-			if err != nil {
-				return err
-			}
-			defer dest.Close()
-
-			_, err = io.Copy(dest, src)
-			if err != nil {
+			if err := sf.CopyTo(tf); err != nil {
 				return err
 			}
 		}
 	}
 
-	ss, err = os.Stat(sf)
+	ss, err := sf.Stat()
 	if err != nil {
 		return err
 	}
-	ts, err := os.Stat(tf)
+	ts, err := tf.Stat()
 	if err != nil {
 		return err
 	}
@@ -264,8 +218,7 @@ func processFile(t *Task[Pipe], source string, path string) error {
 		perm := ss.Mode().Perm()
 		t.Log.Debugf("Setting permissions for: %s with %s", tf, perm)
 
-		err = os.Chmod(tf, perm)
-		if err != nil {
+		if err := tf.Chmod(perm); err != nil {
 			return err
 		}
 	}

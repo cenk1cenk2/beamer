@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	services "gitlab.kilic.dev/docker/beamer/internal"
+	"gitlab.kilic.dev/docker/beamer/internal"
 	"gitlab.kilic.dev/docker/beamer/internal/adapter"
 	"gitlab.kilic.dev/docker/beamer/internal/comparator"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
@@ -13,18 +13,19 @@ import (
 func Setup(tl *TaskList[Pipe]) *Task[Pipe] {
 	return tl.CreateTask("setup").
 		Set(func(t *Task[Pipe]) error {
-			ctx := &services.ServiceCtx{
+			ctx := &internal.ServiceCtx{
 				Log:              t.Log,
 				WorkingDirectory: t.Pipe.WorkingDirectory,
 				TargetDirectory:  t.Pipe.TargetDirectory,
 				RootDirectory:    t.Pipe.RootDirectory,
-				Flags: &services.ServiceFlags{
+				Flags: &internal.ServiceFlags{
 					ForceSync:                  t.Pipe.ForceSync,
 					SyncDelete:                 t.Pipe.SyncDelete,
 					SyncDeleteEmptyDirectories: t.Pipe.SyncDeleteEmptyDirectories,
 				},
 			}
-			ctx.State = services.NewState(ctx, filepath.Join(t.Pipe.TargetDirectory, t.Pipe.Config.StateFile))
+			ctx.State = internal.NewState(ctx, filepath.Join(t.Pipe.TargetDirectory, t.Pipe.Config.StateFile))
+			t.Pipe.Ctx.State = ctx.State
 
 			var err error
 

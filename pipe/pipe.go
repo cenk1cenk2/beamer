@@ -3,7 +3,8 @@ package pipe
 import (
 	"time"
 
-	services "gitlab.kilic.dev/docker/beamer/internal"
+	"github.com/workanator/go-floc/v3"
+	"gitlab.kilic.dev/docker/beamer/internal"
 	"gitlab.kilic.dev/docker/beamer/internal/adapter"
 	"gitlab.kilic.dev/docker/beamer/internal/comparator"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
@@ -11,7 +12,7 @@ import (
 
 type (
 	Pipe struct {
-		services.ServiceFlags
+		internal.ServiceFlags
 
 		Ctx    Ctx
 		Config Config
@@ -19,6 +20,7 @@ type (
 
 	Config struct {
 		Adapter        Adapter `validate:"required,oneof=git"`
+		Once           bool
 		StateFile      string
 		Interval       time.Duration
 		IgnoreFile     string
@@ -42,15 +44,27 @@ func New(p *Plumber) *TaskList[Pipe] {
 			return tl.RunJobs(Setup(tl).Job())
 		}).
 		Set(func(tl *TaskList[Pipe]) Job {
+			jobs := tl.JobSequence(
+				a.Sync(),
+				Workflow(tl).Job(),
+				a.Finalize(),
+			)
+
 			return tl.JobSequence(
 				a.Init(),
-				tl.JobLoopWithWaitAfter(
-					tl.JobSequence(
-						a.Sync(),
-						Workflow(tl).Job(),
-						a.Finalize(),
+				tl.JobIf(
+					func(ctx floc.Context) bool {
+						return tl.Pipe.Config.Once
+					},
+					tl.JobThen(jobs),
+					tl.JobElse(
+						tl.JobLoopWithWaitAfter(
+							tl.JobSequence(
+								jobs,
+							),
+							tl.Pipe.Config.Interval,
+						),
 					),
-					tl.Pipe.Config.Interval,
 				),
 			)
 		})

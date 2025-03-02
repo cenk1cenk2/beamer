@@ -1,9 +1,9 @@
 package comparator
 
 import (
-	"os"
+	"gitlab.kilic.dev/docker/beamer/internal/operations"
 )
 
 type FileComparator interface {
-	CompareFiles(f1 *os.File, f2 *os.File) (bool, error)
+	CompareFiles(a *operations.File, b *operations.File) (bool, error)
 }

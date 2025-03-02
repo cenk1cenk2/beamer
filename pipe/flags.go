@@ -42,6 +42,16 @@ var Flags = CombineFlags(
 
 		&cli.BoolFlag{
 			Category:    CATEGORY_CONFIG,
+			Name:        "once",
+			Usage:       "Run the workflow only once.",
+			Required:    false,
+			Value:       false,
+			EnvVars:     []string{"BEAMER_ONCE"},
+			Destination: &TL.Pipe.Config.Once,
+		},
+
+		&cli.BoolFlag{
+			Category:    CATEGORY_CONFIG,
 			Name:        "force-workflow",
 			Usage:       "Force workflow to run even if the data is not dirty.",
 			Required:    false,
