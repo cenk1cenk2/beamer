@@ -104,7 +104,7 @@ var Flags = []cli.Flag{
 		Name:        "state-file",
 		Usage:       "File to use for storing state.",
 		Required:    false,
-		Value:       ".beamer-state",
+		Value:       ".beamer",
 		EnvVars:     []string{"BEAMER_STATE_FILE"},
 		Destination: &TL.Pipe.Config.StateFile,
 	},
