@@ -143,6 +143,8 @@ func Workflow(tl *TaskList[Pipe]) *Task[Pipe] {
 					tf := filepath.Join(t.Pipe.Config.TargetDirectory, path)
 					sf := filepath.Join(source, path)
 
+					// TODO: add templating engine here to template the files
+
 					ss, err := os.Stat(tf)
 					if err == nil && ss.IsDir() {
 						return fmt.Errorf("Target is a directory: %s", path)
