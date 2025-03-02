@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -270,8 +272,6 @@ func (a *GitAdapter) Finalize() Job {
 						return nil
 					}
 
-					t.Log.Debugf("Syncing deleted files: from commit %s", state.LastCommit)
-
 					// BUG: ofc this only patches the two commits between, not the whole history
 					// have to come up with another solution here
 
@@ -287,6 +287,8 @@ func (a *GitAdapter) Finalize() Job {
 					if err != nil {
 						return err
 					}
+
+					t.Log.Debugf("Syncing deleted files: from commit %s to %s", last.Hash, now.Hash)
 
 					diff, err := last.Patch(now)
 					if err != nil {
@@ -310,7 +312,13 @@ func (a *GitAdapter) Finalize() Job {
 								return err
 							}
 
-							tf := operations.NewFile(filepath.Join(a.ctx.TargetDirectory, path))
+							tf := operations.NewFile(a.ctx.TargetDirectory, path)
+
+							if slices.Contains(a.ctx.Flags.TemplateFiles, tf.Ext()) {
+								nf := operations.NewFile(a.ctx.TargetDirectory, strings.TrimSuffix(path, tf.Ext()))
+								t.Log.Debugf("This is a template file so path will be adjusted: %s -> %s", tf.Abs(), nf.Abs())
+								tf = nf
+							}
 
 							err = tf.Remove()
 							if err != nil {
@@ -323,7 +331,7 @@ func (a *GitAdapter) Finalize() Job {
 							if err != nil {
 								return err
 							}
-							if len(ls) == 0 && a.ctx.Flags.SyncDeleteEmptyDirectories {
+							if len(ls) == 0 && a.ctx.Flags.SyncDeleteEmptyDirectories && tf.Cwd() != a.ctx.TargetDirectory {
 								err = os.Remove(tf.Cwd())
 								if err != nil {
 									return err
