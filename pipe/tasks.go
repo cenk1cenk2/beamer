@@ -46,6 +46,12 @@ func Setup(tl *TaskList[Pipe]) *Task[Pipe] {
 				t.Pipe.Ctx.FileComparator = comparator.NewFileComparatorSha256()
 
 				t.Log.Debugf("Using SHA256 file comparator.")
+			case comparator.COMPARATOR_MD5:
+				t.Pipe.Ctx.FileComparator = comparator.NewFileComparatorMd5()
+
+				t.Log.Debugf("Using MD5 file comparator.")
+			default:
+				return fmt.Errorf("File comparator %s is not supported", t.Pipe.Config.FileComparator)
 			}
 
 			return nil

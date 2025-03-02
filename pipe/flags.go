@@ -143,9 +143,9 @@ var Flags = CombineFlags(
 		&cli.StringFlag{
 			Category:    CATEGORY_CONFIG,
 			Name:        "file-comparator",
-			Usage:       fmt.Sprintf("File comparator to use. enum(%v)", []string{comparator.COMPARATOR_SHA256}),
+			Usage:       fmt.Sprintf("File comparator to use. enum(%v)", []string{comparator.COMPARATOR_SHA256, comparator.COMPARATOR_MD5}),
 			Required:    false,
-			Value:       comparator.COMPARATOR_SHA256,
+			Value:       comparator.COMPARATOR_MD5,
 			EnvVars:     []string{"BEAMER_FILE_COMPARATOR"},
 			Destination: &TL.Pipe.Config.FileComparator,
 		},

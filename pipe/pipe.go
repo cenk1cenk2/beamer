@@ -25,7 +25,7 @@ type (
 		Interval       time.Duration
 		IgnoreFile     string
 		ForceWorkflow  bool
-		FileComparator comparator.Comparator `validate:"oneof=sha256"`
+		FileComparator comparator.Comparator `validate:"oneof=sha256 md5"`
 		TemplateFiles  []string
 	}
 )
