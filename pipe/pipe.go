@@ -3,69 +3,54 @@ package pipe
 import (
 	"time"
 
-	"github.com/workanator/go-floc/v3"
+	services "gitlab.kilic.dev/docker/beamer/internal"
+	"gitlab.kilic.dev/docker/beamer/internal/adapter"
+	"gitlab.kilic.dev/docker/beamer/internal/comparator"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
 )
 
 type (
 	Pipe struct {
+		services.ServiceFlags
+
 		Ctx    Ctx
 		Config Config
-		Git    Git
 	}
 
 	Config struct {
-		Mode                       string `validate:"required,oneof=git"`
-		WorkingDirectory           string
-		TargetDirectory            string `validate:"required"`
-		RootDirectory              string
-		SyncDelete                 bool
-		SyncDeleteEmptyDirectories bool
-		StateFile                  string
-		PullInterval               time.Duration
-		IgnoreFile                 string
-		ForceWorkflow              bool
-	}
-
-	Git struct {
-		AuthMethod            string `validate:"oneof=none ssh"`
-		Repository            string `validate:"required"`
-		Branch                string
-		SshPrivateKey         string `validate:"required_if=Inner.AuthMethod ssh"`
-		SshPrivateKeyPassword string
+		Adapter        Adapter `validate:"required,oneof=git"`
+		StateFile      string
+		Interval       time.Duration
+		IgnoreFile     string
+		ForceWorkflow  bool
+		FileComparator comparator.Comparator `validate:"oneof=sha256"`
 	}
 )
 
 var TL = TaskList[Pipe]{
 	Pipe: Pipe{},
 }
+var a adapter.Adapter
 
 func New(p *Plumber) *TaskList[Pipe] {
 	return TL.New(p).
-		SetRuntimeDepth(1).
+		SetRuntimeDepth(2).
 		ShouldRunBefore(func(tl *TaskList[Pipe]) error {
 			return ProcessFlags(tl)
 		}).
+		ShouldRunBefore(func(tl *TaskList[Pipe]) error {
+			return tl.RunJobs(Setup(tl).Job())
+		}).
 		Set(func(tl *TaskList[Pipe]) Job {
 			return tl.JobSequence(
-				tl.JobSequence(
-					tl.JobIf(
-						func(_ floc.Context) bool {
-							return tl.Pipe.Config.Mode == "git"
-						},
-						tl.JobSequence(
-							GitConfigureAuthentication(tl).Job(),
-							GitCloneRepository(tl).Job(),
-							tl.JobLoopWithWaitAfter(
-								tl.JobSequence(
-									GitPull(tl).Job(),
-									GitSyncDeletes(tl).Job(),
-									Workflow(tl).Job(),
-								),
-								tl.Pipe.Config.PullInterval,
-							),
-						),
+				a.Init(),
+				tl.JobLoopWithWaitAfter(
+					tl.JobSequence(
+						a.Sync(),
+						Workflow(tl).Job(),
+						a.Finalize(),
 					),
+					tl.Pipe.Config.Interval,
 				),
 			)
 		})

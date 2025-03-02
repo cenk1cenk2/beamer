@@ -1,19 +1,14 @@
 package pipe
 
 import (
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing/transport"
+	"gitlab.kilic.dev/docker/beamer/internal/comparator"
 )
 
 type Ctx struct {
+	FileComparator comparator.FileComparator
+
 	Fetch struct {
 		Dirty bool
 		State []byte
-	}
-
-	Git struct {
-		AuthMethod    transport.AuthMethod
-		SshPrivateKey []byte
-		Repository    *git.Repository
 	}
 }
