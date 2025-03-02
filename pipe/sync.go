@@ -3,8 +3,10 @@ package pipe
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	glob "github.com/bmatcuk/doublestar/v4"
 	"gitlab.kilic.dev/docker/beamer/internal/operations"
@@ -178,17 +180,50 @@ func processFile(t *Task[Pipe], path string) error {
 
 	if sf.IsDir() {
 		return fmt.Errorf("Source is a directory: %s", sf.Abs())
+	} else if tf.IsDir() {
+		return fmt.Errorf("Target is a directory: %s", tf.Abs())
 	}
 
-	// nolint: nestif
-	if !tf.Exists() {
-		t.Log.Debugf("File already does not exists copying to target: %s", tf.Abs())
-
-		if err := sf.CopyTo(tf); err != nil {
+	//nolint:nestif
+	if slices.Contains(t.Pipe.Config.TemplateFiles, tf.Ext()) {
+		f, err := sf.ReadFile()
+		if err != nil {
 			return err
 		}
-	} else {
-		t.Log.Debugf("File already exists: %s", tf)
+
+		template, err := InlineTemplate(string(f), struct{}{})
+		if err != nil {
+			return fmt.Errorf("Can not inline template for file: %s -> %w", sf.Abs(), err)
+		}
+
+		ss, err := sf.Stat()
+		if err != nil {
+			return err
+		}
+
+		// change the source file to the templated file
+		path := strings.TrimSuffix(path, sf.Ext())
+
+		temp, err := os.CreateTemp("", fmt.Sprintf("beamer-%s", filepath.Base(path)))
+		if err != nil {
+			return err
+		}
+		defer os.Remove(temp.Name())
+
+		nf := operations.NewFile(temp.Name())
+		if err := nf.WriteFile([]byte(template), ss.Mode().Perm()); err != nil {
+			return err
+		}
+
+		tf = operations.NewFile(t.Pipe.TargetDirectory, path)
+
+		t.Log.Debugf("Templated file: %s (from temp %s) -> %s", sf.Abs(), nf.Abs(), tf.Abs())
+
+		sf = nf
+	}
+
+	if tf.Exists() {
+		t.Log.Debugf("File already exists: %s", tf.Abs())
 
 		equal, err := t.Pipe.Ctx.FileComparator.CompareFiles(sf, tf)
 		if err != nil {
@@ -197,31 +232,14 @@ func processFile(t *Task[Pipe], path string) error {
 
 		if equal {
 			t.Log.Debugf("Files are the same, nothing to do: %s -> %s", sf.Abs(), tf.Abs())
-		} else {
-			t.Log.Infof("File has changed, updating: %s -> %s", sf.Abs(), tf.Abs())
 
-			if err := sf.CopyTo(tf); err != nil {
-				return err
-			}
+			return nil
 		}
+
+		t.Log.Infof("File has changed, updating: %s -> %s", sf.Abs(), tf.Abs())
+	} else {
+		t.Log.Debugf("File already does not exists copying to target: %s", tf.Abs())
 	}
 
-	ss, err := sf.Stat()
-	if err != nil {
-		return err
-	}
-	ts, err := tf.Stat()
-	if err != nil {
-		return err
-	}
-	if ss.Mode().Perm() != ts.Mode().Perm() {
-		perm := ss.Mode().Perm()
-		t.Log.Debugf("Setting permissions for: %s with %s", tf, perm)
-
-		if err := tf.Chmod(perm); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return sf.CopyTo(tf)
 }

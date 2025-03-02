@@ -33,6 +33,10 @@ func (f *File) Cwd() string {
 	return f.cwd
 }
 
+func (f *File) Ext() string {
+	return filepath.Ext(f.path)
+}
+
 func (f *File) RelTo(base string) (string, error) {
 	return filepath.Rel(base, f.Abs())
 }

@@ -149,11 +149,22 @@ var Flags = CombineFlags(
 			EnvVars:     []string{"BEAMER_FILE_COMPARATOR"},
 			Destination: &TL.Pipe.Config.FileComparator,
 		},
+
+		&cli.StringSliceFlag{
+			Category: CATEGORY_CONFIG,
+			Name:     "template-files",
+			Usage:    "Template file extensions that should be rendered.",
+			Required: false,
+			Value:    cli.NewStringSlice(".tmpl", ".gotmpl"),
+			EnvVars:  []string{"BEAMER_TEMPLATE_FILES"},
+		},
 	},
 	adapter.GitAdapterFlags,
 )
 
 //revive:disable:unused-parameter
 func ProcessFlags(tl *TaskList[Pipe]) error {
+	tl.Pipe.Config.TemplateFiles = tl.CliContext.StringSlice("template-files")
+
 	return nil
 }

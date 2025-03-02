@@ -26,6 +26,7 @@ type (
 		IgnoreFile     string
 		ForceWorkflow  bool
 		FileComparator comparator.Comparator `validate:"oneof=sha256"`
+		TemplateFiles  []string
 	}
 )
 
@@ -38,9 +39,10 @@ func New(p *Plumber) *TaskList[Pipe] {
 	return TL.New(p).
 		SetRuntimeDepth(2).
 		ShouldRunBefore(func(tl *TaskList[Pipe]) error {
-			return ProcessFlags(tl)
-		}).
-		ShouldRunBefore(func(tl *TaskList[Pipe]) error {
+			if err := ProcessFlags(tl); err != nil {
+				return err
+			}
+
 			return tl.RunJobs(Setup(tl).Job())
 		}).
 		Set(func(tl *TaskList[Pipe]) Job {
