@@ -272,6 +272,9 @@ func (a *GitAdapter) Finalize() Job {
 
 					t.Log.Debugf("Syncing deleted files: from commit %s", state.LastCommit)
 
+					// BUG: ofc this only patches the two commits between, not the whole history
+					// have to come up with another solution here
+
 					last, err := a.repository.CommitObject(plumbing.NewHash(state.LastCommit))
 					if err != nil {
 						return err
