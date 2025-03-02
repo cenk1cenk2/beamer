@@ -40,15 +40,6 @@ docker-build:
     refs:
       - main
 
-docker-manifest:
-  stage: post
-  extends: .docker-manifest-dockerhub
-  dependencies:
-    - docker-build
-  only:
-    refs:
-      - main
-
 update-docker-hub-readme:
   stage: post
   extends: .update-docker-hub-readme
