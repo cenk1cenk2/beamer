@@ -53,7 +53,7 @@ func New(p *Plumber) *TaskList[Pipe] {
 			return tl.JobSequence(
 				a.Init(),
 				tl.JobIf(
-					func(ctx floc.Context) bool {
+					func(_ floc.Context) bool {
 						return tl.Pipe.Config.Once
 					},
 					tl.JobThen(jobs),
