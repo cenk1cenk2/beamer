@@ -185,7 +185,7 @@ func processFile(t *Task[Pipe], path string) error {
 	}
 
 	//nolint:nestif
-	if slices.Contains(t.Pipe.Config.TemplateFiles, tf.Ext()) {
+	if slices.Contains(t.Pipe.TemplateFiles, tf.Ext()) {
 		f, err := sf.ReadFile()
 		if err != nil {
 			return err

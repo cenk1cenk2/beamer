@@ -164,7 +164,7 @@ var Flags = CombineFlags(
 
 //revive:disable:unused-parameter
 func ProcessFlags(tl *TaskList[Pipe]) error {
-	tl.Pipe.Config.TemplateFiles = tl.CliContext.StringSlice("template-files")
+	tl.Pipe.TemplateFiles = tl.CliContext.StringSlice("template-files")
 
 	return nil
 }

@@ -22,6 +22,7 @@ func Setup(tl *TaskList[Pipe]) *Task[Pipe] {
 					ForceSync:                  t.Pipe.ForceSync,
 					SyncDelete:                 t.Pipe.SyncDelete,
 					SyncDeleteEmptyDirectories: t.Pipe.SyncDeleteEmptyDirectories,
+					TemplateFiles:              t.Pipe.TemplateFiles,
 				},
 			}
 			ctx.State = internal.NewState(ctx, filepath.Join(t.Pipe.TargetDirectory, t.Pipe.Config.StateFile))

@@ -21,4 +21,6 @@ type ServiceFlags struct {
 	ForceSync                  bool
 	SyncDelete                 bool
 	SyncDeleteEmptyDirectories bool
+
+	TemplateFiles []string
 }

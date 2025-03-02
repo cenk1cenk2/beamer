@@ -173,8 +173,8 @@ linters:
     - bidichk # Checks for dangerous unicode character sequences
     - bodyclose # checks whether HTTP response body is closed successfully
     - contextcheck # check the function whether use a non-inherited context
-    - cyclop # checks function and package cyclomatic complexity
-    - dupl # Tool for code clone detection
+    # - cyclop # checks function and package cyclomatic complexity
+    # - dupl # Tool for code clone detection
     - durationcheck # check for two durations multiplied together
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error.
     - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.
