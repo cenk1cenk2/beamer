@@ -1,6 +1,9 @@
 package pipe
 
 import (
+	"time"
+
+	"github.com/workanator/go-floc/v3"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
 )
 
@@ -14,6 +17,11 @@ type (
 	Config struct {
 		Mode             string `validate:"required,oneof=git"`
 		WorkingDirectory string
+		TargetDirectory  string `validate:"required"`
+		RootDirectory    string
+		PullInterval     time.Duration
+		IgnoreFile       string
+		ForceWorkflow    bool
 	}
 
 	Git struct {
@@ -37,7 +45,24 @@ func New(p *Plumber) *TaskList[Pipe] {
 		}).
 		Set(func(tl *TaskList[Pipe]) Job {
 			return tl.JobSequence(
-				WorkflowGit(tl).Job(),
+				tl.JobSequence(
+					tl.JobIf(
+						func(_ floc.Context) bool {
+							return tl.Pipe.Config.Mode == "git"
+						},
+						tl.JobSequence(
+							GitConfigureAuthentication(tl).Job(),
+							GitCloneRepository(tl).Job(),
+							tl.JobLoopWithWaitAfter(
+								tl.JobSequence(
+									GitPull(tl).Job(),
+									Workflow(tl).Job(),
+								),
+								tl.Pipe.Config.PullInterval,
+							),
+						),
+					),
+				),
 			)
 		})
 }

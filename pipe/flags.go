@@ -3,6 +3,7 @@ package pipe
 import (
 	"encoding/base64"
 	"os"
+	"time"
 
 	"github.com/urfave/cli/v2"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
@@ -38,6 +39,56 @@ var Flags = []cli.Flag{
 		Destination: &TL.Pipe.Config.WorkingDirectory,
 	},
 
+	&cli.DurationFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "pull-interval",
+		Usage:       "Interval to wait between pull operations.",
+		Required:    false,
+		Value:       time.Second * 5,
+		EnvVars:     []string{"BEAMER_PULL_INTERVAL"},
+		Destination: &TL.Pipe.Config.PullInterval,
+	},
+
+	&cli.BoolFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "force-workflow",
+		Usage:       "Force workflow to run even if the data is not dirty.",
+		Required:    false,
+		Value:       false,
+		EnvVars:     []string{"BEAMER_FORCE_WORKFLOW"},
+		Destination: &TL.Pipe.Config.ForceWorkflow,
+	},
+
+	&cli.StringFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "root-directory",
+		Usage:       "Root directory for the project.",
+		Required:    false,
+		Value:       "/",
+		EnvVars:     []string{"BEAMER_ROOT_DIRECTORY"},
+		Destination: &TL.Pipe.Config.RootDirectory,
+	},
+
+	&cli.StringFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "target-directory",
+		Usage:       "Target directory for the project.",
+		Required:    true,
+		Value:       "",
+		EnvVars:     []string{"BEAMER_TARGET_DIRECTORY"},
+		Destination: &TL.Pipe.Config.TargetDirectory,
+	},
+
+	&cli.StringFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "ignore-file",
+		Usage:       "File to use for ignoring files.",
+		Required:    false,
+		Value:       ".beamer-ignore",
+		EnvVars:     []string{"BEAMER_IGNORE_FILE"},
+		Destination: &TL.Pipe.Config.IgnoreFile,
+	},
+
 	// category git
 
 	&cli.StringFlag{
@@ -55,7 +106,7 @@ var Flags = []cli.Flag{
 		Name:        "git-branch",
 		Usage:       "Git branch to clone.",
 		Required:    false,
-		Value:       "",
+		Value:       "HEAD",
 		EnvVars:     []string{"BEAMER_GIT_BRANCH"},
 		Destination: &TL.Pipe.Git.Branch,
 	},

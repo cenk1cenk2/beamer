@@ -1,63 +1,249 @@
 package pipe
 
 import (
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"bufio"
+	"bytes"
+	"crypto/sha256"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
+
+	glob "github.com/bmatcuk/doublestar/v4"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
+	"golang.org/x/sync/errgroup"
 )
 
-func WorkflowGit(tl *TaskList[Pipe]) *Task[Pipe] {
-	return tl.CreateTask("git").
-		SetJobWrapper(func(_ Job, _ *Task[Pipe]) Job {
-			return tl.JobSequence(
-				GitConfigureAuthentication(tl).Job(),
-				GitCloneRepository(tl).Job(),
-			)
-		})
-}
-
-func GitConfigureAuthentication(tl *TaskList[Pipe]) *Task[Pipe] {
-	return tl.CreateTask("git", "conf", "auth").
+// nolint: gocyclo, cyclop
+func Workflow(tl *TaskList[Pipe]) *Task[Pipe] {
+	return tl.CreateTask("workflow").
+		ShouldDisable(func(t *Task[Pipe]) bool {
+			return !t.Pipe.Ctx.Fetch.Dirty && !t.Pipe.Config.ForceWorkflow
+		}).
 		Set(func(t *Task[Pipe]) error {
-			switch t.Pipe.Git.AuthMethod {
-			case "ssh":
-				t.Log.Infof("Using SSH authentication for git.")
+			source := filepath.Join(t.Pipe.Config.WorkingDirectory, t.Pipe.Config.RootDirectory)
 
-				am, err := ssh.NewPublicKeys("git", t.Pipe.Ctx.Git.SshPrivateKey, t.Pipe.Git.SshPrivateKeyPassword)
-				if err != nil {
-					return err
+			t.Log.Debugf("Walking from directory: %s", source)
+
+			ignored := []string{
+				fmt.Sprintf("**/%s", t.Pipe.Config.IgnoreFile),
+				".git/**",
+			}
+
+			if t.Pipe.Config.IgnoreFile != "" {
+				file := filepath.Join(source, t.Pipe.Config.IgnoreFile)
+
+				stat, err := os.Stat(file)
+				if err != nil || stat.IsDir() {
+					t.Log.Debugf("Ignore file not found: %s", file)
+				} else {
+					f, err := os.Open(file)
+					if err != nil {
+						return err
+					}
+					defer f.Close()
+
+					scanner := bufio.NewScanner(f)
+					for scanner.Scan() {
+						line := scanner.Text()
+						if line == "" {
+							ignored = append(ignored, line)
+						}
+					}
 				}
-
-				t.Pipe.Ctx.Git.AuthMethod = am
 			}
 
-			return nil
-		})
-}
+			t.Log.Debugf("Ignoring patterns: %v", ignored)
 
-func GitCloneRepository(tl *TaskList[Pipe]) *Task[Pipe] {
-	return tl.CreateTask("git", "clone").
-		Set(func(t *Task[Pipe]) error {
-			t.Log.Infof("Cloning repository: %s", tl.Pipe.Git.Repository)
+			files := []string{}
 
-			repository, err := git.PlainClone(tl.Pipe.Config.WorkingDirectory, true, &git.CloneOptions{
-				URL:           t.Pipe.Git.Repository,
-				SingleBranch:  true,
-				Depth:         1,
-				ReferenceName: plumbing.ReferenceName(t.Pipe.Git.Branch),
-				Progress:      t.Log.Writer(),
-				Auth:          t.Pipe.Ctx.Git.AuthMethod,
-			})
+			g := errgroup.Group{}
+			err := filepath.WalkDir(
+				source,
+				func(abs string, d fs.DirEntry, e error) error {
+					if e != nil {
+						return fmt.Errorf("Error walking: %s -> %w", abs, e)
+					} else if d.IsDir() {
+						return nil
+					}
+
+					path, err := filepath.Rel(t.Pipe.Config.WorkingDirectory, abs)
+					if err != nil {
+						return err
+					}
+
+					for _, pattern := range ignored {
+						match, err := glob.PathMatch(pattern, path)
+						if err != nil {
+							return err
+						} else if match {
+							t.Log.Debugf("Ignoring: %s", path)
+
+							return nil
+						}
+					}
+
+					files = append(files, path)
+
+					return nil
+				},
+			)
 			if err != nil {
 				return err
 			}
 
-			ref, err := repository.Head()
+			err = g.Wait()
 			if err != nil {
 				return err
 			}
-			t.Log.Infof("Repository cloned successfully: %s", ref)
+
+			// create directories
+			dirs := []string{}
+			for _, path := range files {
+				dirs = append(dirs, filepath.Dir(path))
+			}
+			dirs = slices.Compact(dirs)
+
+			for _, dir := range dirs {
+				g.Go(func() error {
+					path := filepath.Join(t.Pipe.Config.TargetDirectory, dir)
+
+					stat, err := os.Stat(filepath.Join(source, dir))
+					if err != nil {
+						return fmt.Errorf("Can not get the stat of the source directory: %s -> %w", filepath.Join(source, dir), err)
+					}
+					perm := stat.Mode().Perm()
+
+					t.Log.Debugf("Directory needed in target: %s with %s in %s", dir, perm, t.Pipe.Config.TargetDirectory)
+
+					err = os.MkdirAll(path, perm)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+			}
+
+			err = g.Wait()
+			if err != nil {
+				return err
+			}
+
+			// process files
+
+			for _, path := range files {
+				g.Go(func() error {
+					t.Log.Debugf("Processing: %s", path)
+
+					tf := filepath.Join(t.Pipe.Config.TargetDirectory, path)
+					sf := filepath.Join(source, path)
+
+					ss, err := os.Stat(tf)
+					if err == nil && ss.IsDir() {
+						return fmt.Errorf("Target is a directory: %s", path)
+					}
+					if errors.Is(err, os.ErrNotExist) {
+						t.Log.Debugf("File already does not exists copying to target: %s", tf)
+
+						src, err := os.Open(sf)
+						if err != nil {
+							return err
+						}
+						defer src.Close()
+
+						dest, err := os.Create(tf)
+						if err != nil {
+							return err
+						}
+						defer dest.Close()
+
+						_, err = io.Copy(dest, src)
+						if err != nil {
+							return err
+						}
+					} else if err != nil {
+						return err
+					} else {
+						t.Log.Debugf("File already exists: %s", tf)
+
+						f1, err := os.Open(tf)
+						if err != nil {
+							return err
+						}
+						defer f1.Close()
+
+						f2, err := os.Open(sf)
+						if err != nil {
+							return err
+						}
+						defer f2.Close()
+
+						h1 := sha256.New()
+						if _, err := io.Copy(h1, f1); err != nil {
+							return err
+						}
+
+						h2 := sha256.New()
+						if _, err := io.Copy(h2, f2); err != nil {
+							return err
+						}
+
+						if bytes.Equal(h1.Sum(nil), h2.Sum(nil)) {
+							t.Log.Debugf("Files are the same, nothing to do: %s -> %s", path, tf)
+						} else {
+							t.Log.Infof("File has changed, updating: %s -> %s", path, tf)
+
+							src, err := os.Open(sf)
+							if err != nil {
+								return err
+							}
+							defer src.Close()
+
+							dest, err := os.Create(tf)
+							if err != nil {
+								return err
+							}
+							defer dest.Close()
+
+							_, err = io.Copy(dest, src)
+							if err != nil {
+								return err
+							}
+						}
+					}
+
+					ss, err = os.Stat(sf)
+					if err != nil {
+						return err
+					}
+					ts, err := os.Stat(tf)
+					if err != nil {
+						return err
+					}
+					if ss.Mode().Perm() != ts.Mode().Perm() {
+						perm := ss.Mode().Perm()
+						t.Log.Debugf("Setting permissions for: %s with %s", tf, perm)
+
+						err = os.Chmod(tf, perm)
+						if err != nil {
+							return err
+						}
+					}
+
+					return nil
+				})
+			}
+
+			err = g.Wait()
+			if err != nil {
+				return err
+			}
+
+			// TODO: diff with the starting point and delete the deleted files
 
 			return nil
 		})
