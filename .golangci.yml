@@ -56,26 +56,6 @@ linters-settings:
         # Default: true
         skipRecvDeref: false
 
-  gomnd:
-    # List of function patterns to exclude from analysis.
-    # Values always ignored: `time.Date`
-    # Default: []
-    ignored-functions:
-      - os.Chmod
-      - os.Mkdir
-      - os.MkdirAll
-      - os.OpenFile
-      - os.WriteFile
-      - prometheus.ExponentialBuckets
-      - prometheus.ExponentialBucketsRange
-      - prometheus.LinearBuckets
-      - strconv.FormatFloat
-      - strconv.FormatInt
-      - strconv.FormatUint
-      - strconv.ParseFloat
-      - strconv.ParseInt
-      - strconv.ParseUint
-
   gomodguard:
     blocked:
       # List of blocked modules.
@@ -144,8 +124,8 @@ linters-settings:
       - name: errorf
         severity: error
       - name: error-return
-      # - name: if-return
-      #   severity: error
+      - name: if-return
+        severity: error
       - name: increment-decrement
       - name: range
       - name: indent-error-flow
@@ -172,17 +152,6 @@ linters-settings:
     # Default: []
     packages:
       - github.com/jmoiron/sqlx
-
-  tenv:
-    # The option `all` will run against whole test files (`_test.go`) regardless of method/function signatures.
-    # Otherwise, only methods that take `*testing.T`, `*testing.B`, and `testing.TB` as arguments are checked.
-    # Default: false
-    all: true
-
-  varcheck:
-    # Check usage of exported fields and variables.
-    # Default: false
-    exported-fields: false # default false # TODO: enable after fixing false positives
 
 linters:
   disable-all: true
@@ -211,7 +180,7 @@ linters:
     - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.
     # - execinquery # execinquery is a linter about query string checker in Query function which reads your Go src files and warning it finds
     - exhaustive # check exhaustiveness of enum switch statements
-    # - exportloopref # checks for pointers to enclosing loop variables
+    - copyloopvar # checks for pointers to enclosing loop variables
     # - forbidigo # Forbids identifiers
     - funlen # Tool for detection of long functions
     # - gochecknoglobals # check that no global variables exist
@@ -230,7 +199,7 @@ linters:
     # - lll # Reports long lines
     - makezero # Finds slice declarations with non-zero initial length
     - nakedret # Finds naked returns in functions greater than a specified function length
-    # - nestif # Reports deeply nested if statements
+    - nestif # Reports deeply nested if statements
     - nilerr # Finds the code that returns nil even if it checks that the error is not nil.
     - nilnil # Checks that there is no simultaneous return of nil error and an invalid value.
     # - noctx # noctx finds sending http request without context.Context
