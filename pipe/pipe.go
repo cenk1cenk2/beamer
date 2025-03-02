@@ -15,15 +15,16 @@ type (
 	}
 
 	Config struct {
-		Mode             string `validate:"required,oneof=git"`
-		WorkingDirectory string
-		TargetDirectory  string `validate:"required"`
-		RootDirectory    string
-		SyncDelete       bool
-		StateFile        string
-		PullInterval     time.Duration
-		IgnoreFile       string
-		ForceWorkflow    bool
+		Mode                       string `validate:"required,oneof=git"`
+		WorkingDirectory           string
+		TargetDirectory            string `validate:"required"`
+		RootDirectory              string
+		SyncDelete                 bool
+		SyncDeleteEmptyDirectories bool
+		StateFile                  string
+		PullInterval               time.Duration
+		IgnoreFile                 string
+		ForceWorkflow              bool
 	}
 
 	Git struct {

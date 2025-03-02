@@ -179,10 +179,36 @@ func GitSyncDeletes(tl *TaskList[Pipe]) *Task[Pipe] {
 				return err
 			}
 
-			t.Log.Debugf("Diff: %v", diff.Stats().String())
+			for _, file := range diff.FilePatches() {
+				from, to := file.Files()
+				if to == nil {
+					path, err := filepath.Rel(t.Pipe.Config.RootDirectory, fmt.Sprintf("/%s", from.Path()))
+					if err != nil {
+						return err
+					}
 
-			for _, s := range diff.Stats() {
-				t.Log.Debugf("File: %v", s.Name)
+					target := filepath.Join(t.Pipe.Config.TargetDirectory, path)
+
+					err = os.Remove(target)
+					if err != nil {
+						t.Log.Warnf("File already did not exists: %s", path)
+					} else {
+						t.Log.Warnf("File deleted: %s", path)
+					}
+
+					ls, err := os.ReadDir(filepath.Dir(target))
+					if err != nil {
+						return err
+					}
+					if len(ls) == 0 && t.Pipe.Config.SyncDeleteEmptyDirectories {
+						err = os.Remove(filepath.Dir(target))
+						if err != nil {
+							return err
+						}
+
+						t.Log.Warnf("Empty directory deleted: %s", filepath.Dir(target))
+					}
+				}
 			}
 
 			return nil

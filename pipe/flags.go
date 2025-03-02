@@ -99,6 +99,16 @@ var Flags = []cli.Flag{
 		Destination: &TL.Pipe.Config.SyncDelete,
 	},
 
+	&cli.BoolFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "sync-delete-empty-directories",
+		Usage:       "Delete empty directories after sync delete.",
+		Required:    false,
+		Value:       true,
+		EnvVars:     []string{"BEAMER_SYNC_DELETE_EMPTY_DIRECTORIES"},
+		Destination: &TL.Pipe.Config.SyncDeleteEmptyDirectories,
+	},
+
 	&cli.StringFlag{
 		Category:    CATEGORY_CONFIG,
 		Name:        "state-file",
