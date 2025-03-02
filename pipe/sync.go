@@ -110,7 +110,7 @@ func walkdir(t *Task[Pipe], ignored []string) ([]string, error) {
 				if err != nil {
 					return err
 				} else if match {
-					t.Log.Debugf("Ignoring: %s", path)
+					t.Log.Debugf("Ignoring: %s with /%s/", path, pattern)
 
 					return nil
 				}
@@ -171,18 +171,18 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 }
 
 func processFile(t *Task[Pipe], path string) error {
-	t.Log.Debugf("Processing: %s", path)
-
 	sf := operations.NewFile(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory, path)
 	tf := operations.NewFile(t.Pipe.TargetDirectory, path)
 
+	t.Log.Debugf("Processing: %s -> %s", sf.Abs(), tf.Abs())
+
 	if sf.IsDir() {
-		return fmt.Errorf("Target is a directory: %s", path)
+		return fmt.Errorf("Source is a directory: %s", sf.Abs())
 	}
 
 	// nolint: nestif
 	if !tf.Exists() {
-		t.Log.Debugf("File already does not exists copying to target: %s", tf)
+		t.Log.Debugf("File already does not exists copying to target: %s", tf.Abs())
 
 		if err := sf.CopyTo(tf); err != nil {
 			return err
@@ -196,9 +196,9 @@ func processFile(t *Task[Pipe], path string) error {
 		}
 
 		if equal {
-			t.Log.Debugf("Files are the same, nothing to do: %s -> %s", path, tf)
+			t.Log.Debugf("Files are the same, nothing to do: %s -> %s", sf.Abs(), tf.Abs())
 		} else {
-			t.Log.Infof("File has changed, updating: %s -> %s", path, tf)
+			t.Log.Infof("File has changed, updating: %s -> %s", sf.Abs(), tf.Abs())
 
 			if err := sf.CopyTo(tf); err != nil {
 				return err

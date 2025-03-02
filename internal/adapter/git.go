@@ -311,9 +311,9 @@ func (a *GitAdapter) Finalize() Job {
 
 							err = tf.Remove()
 							if err != nil {
-								t.Log.Warnf("File already did not exists: %s", path)
+								t.Log.Warnf("File already did not exists: %s", tf.Abs())
 							} else {
-								t.Log.Warnf("File deleted: %s", path)
+								t.Log.Warnf("File deleted: %s", tf.Abs())
 							}
 
 							ls, err := tf.ReadDir()

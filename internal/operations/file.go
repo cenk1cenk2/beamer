@@ -110,6 +110,14 @@ func (f *File) MatchModeWith(target *File) error {
 	if err != nil {
 		return err
 	}
+	ss, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	if ts.Mode() == ss.Mode() {
+		return nil
+	}
 
 	return f.Chmod(ts.Mode())
 }
@@ -132,8 +140,11 @@ func (f *File) CopyTo(target *File) error {
 	defer dest.Close()
 
 	_, err = io.Copy(dest, src)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return target.MatchModeWith(f)
 }
 
 func (f *File) Mkdirp(perm os.FileMode) error {
