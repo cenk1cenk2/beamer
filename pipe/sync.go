@@ -1,3 +1,4 @@
+// nolint: cyclop
 package pipe
 
 import (
@@ -243,7 +244,14 @@ func Workflow(tl *TaskList[Pipe]) *Task[Pipe] {
 				return err
 			}
 
-			// TODO: diff with the starting point and delete the deleted files
+			f := filepath.Join(t.Pipe.Config.TargetDirectory, t.Pipe.Config.StateFile)
+			t.Log.Debugf("Writing state file: %s -> %s", f, t.Pipe.Ctx.Fetch.State)
+			err = os.WriteFile(f, t.Pipe.Ctx.Fetch.State, 0600)
+			if err != nil {
+				return err
+			}
+
+			t.Pipe.Ctx.Fetch.Dirty = false
 
 			return nil
 		})

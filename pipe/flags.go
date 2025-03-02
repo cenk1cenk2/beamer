@@ -89,6 +89,26 @@ var Flags = []cli.Flag{
 		Destination: &TL.Pipe.Config.IgnoreFile,
 	},
 
+	&cli.BoolFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "sync-delete",
+		Usage:       "Delete files that are not in the source.",
+		Required:    false,
+		Value:       false,
+		EnvVars:     []string{"BEAMER_SYNC_DELETE"},
+		Destination: &TL.Pipe.Config.SyncDelete,
+	},
+
+	&cli.StringFlag{
+		Category:    CATEGORY_CONFIG,
+		Name:        "state-file",
+		Usage:       "File to use for storing state.",
+		Required:    false,
+		Value:       ".beamer-state",
+		EnvVars:     []string{"BEAMER_STATE_FILE"},
+		Destination: &TL.Pipe.Config.StateFile,
+	},
+
 	// category git
 
 	&cli.StringFlag{

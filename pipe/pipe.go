@@ -19,6 +19,8 @@ type (
 		WorkingDirectory string
 		TargetDirectory  string `validate:"required"`
 		RootDirectory    string
+		SyncDelete       bool
+		StateFile        string
 		PullInterval     time.Duration
 		IgnoreFile       string
 		ForceWorkflow    bool
@@ -56,6 +58,7 @@ func New(p *Plumber) *TaskList[Pipe] {
 							tl.JobLoopWithWaitAfter(
 								tl.JobSequence(
 									GitPull(tl).Job(),
+									GitSyncDeletes(tl).Job(),
 									Workflow(tl).Job(),
 								),
 								tl.Pipe.Config.PullInterval,

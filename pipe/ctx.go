@@ -8,6 +8,7 @@ import (
 type Ctx struct {
 	Fetch struct {
 		Dirty bool
+		State []byte
 	}
 
 	Git struct {

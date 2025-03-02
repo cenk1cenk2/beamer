@@ -1,8 +1,11 @@
 package pipe
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -69,6 +72,13 @@ func GitCloneRepository(tl *TaskList[Pipe]) *Task[Pipe] {
 			}
 			t.Log.Infof("Repository cloned successfully: %s", ref)
 
+			t.Pipe.Ctx.Fetch.State, err = json.Marshal(&GitStateFile{
+				LastCommit: ref.Hash().String(),
+			})
+			if err != nil {
+				return err
+			}
+
 			return nil
 		})
 }
@@ -80,6 +90,11 @@ func GitPull(tl *TaskList[Pipe]) *Task[Pipe] {
 
 			r := t.Pipe.Ctx.Git.Repository
 			w, err := r.Worktree()
+			if err != nil {
+				return err
+			}
+
+			originalRef, err := r.Head()
 			if err != nil {
 				return err
 			}
@@ -102,7 +117,73 @@ func GitPull(tl *TaskList[Pipe]) *Task[Pipe] {
 				return err
 			}
 
+			ref, err := r.Head()
+			if err != nil {
+				return err
+			}
+
 			t.Pipe.Ctx.Fetch.Dirty = true
+			t.Pipe.Ctx.Fetch.State, err = json.Marshal(&GitStateFile{
+				LastCommit: ref.Hash().String(),
+			})
+			if err != nil {
+				return err
+			}
+
+			t.Log.Infof("Repository pulled successfully: %s -> %s", originalRef, ref)
+
+			return nil
+		})
+}
+
+func GitSyncDeletes(tl *TaskList[Pipe]) *Task[Pipe] {
+	return tl.CreateTask("git", "sync", "delete").
+		ShouldDisable(func(t *Task[Pipe]) bool {
+			return !t.Pipe.Config.SyncDelete
+			// || !t.Pipe.Ctx.Fetch.Dirty
+		}).
+		Set(func(t *Task[Pipe]) error {
+			f, err := os.ReadFile(filepath.Join(t.Pipe.Config.TargetDirectory, t.Pipe.Config.StateFile))
+			if errors.Is(err, os.ErrNotExist) {
+				t.Log.Warnf("State file not found: %s", t.Pipe.Config.StateFile)
+
+				return nil
+			} else if err != nil {
+				return err
+			}
+			state := &GitStateFile{}
+			err = json.Unmarshal(f, &state)
+			if err != nil {
+				return err
+			}
+
+			t.Log.Infof("Syncing deleted files between commits: from %s", state.LastCommit)
+
+			r := t.Pipe.Ctx.Git.Repository
+
+			last, err := r.CommitObject(plumbing.NewHash(state.LastCommit))
+			if err != nil {
+				return err
+			}
+			head, err := r.Head()
+			if err != nil {
+				return err
+			}
+			now, err := r.CommitObject(head.Hash())
+			if err != nil {
+				return err
+			}
+
+			diff, err := last.Patch(now)
+			if err != nil {
+				return err
+			}
+
+			t.Log.Debugf("Diff: %v", diff.Stats().String())
+
+			for _, s := range diff.Stats() {
+				t.Log.Debugf("File: %v", s.Name)
+			}
 
 			return nil
 		})
