@@ -8,6 +8,7 @@ stages:
 variables:
   GO_VERSION: 1.24-alpine
   TASK_X_REMOTE_TASKFILES: 1
+  GO_COMMAND_RUNNER: task --yes
   DOCKER_IMAGE_NAME: cenk1cenk2/beamer
 
 include:
