@@ -31,12 +31,7 @@ docker-build:
   stage: docker
   extends: .docker-build-dockerhub
   variables:
-    DOCKER_IMAGE_TAGS: latest-$GITLAB_CI_ARCH
-    DOCKER_MANIFEST_TARGET: latest
-  parallel:
-    matrix:
-      - GITLAB_CI_ARCH:
-          - amd64
+    DOCKER_IMAGE_TAGS: latest
   dependencies:
     - build
   only:
