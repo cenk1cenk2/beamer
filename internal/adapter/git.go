@@ -273,10 +273,7 @@ func (a *GitAdapter) Finalize() Job {
 						return nil
 					}
 
-					// BUG: ofc this only patches the two commits between, not the whole history
-					// have to come up with another solution here
-
-					last, err := a.repository.CommitObject(plumbing.NewHash(state.LastCommit))
+					oldCommit, err := a.repository.CommitObject(plumbing.NewHash(state.LastCommit))
 					if err != nil {
 						return err
 					}
@@ -284,25 +281,25 @@ func (a *GitAdapter) Finalize() Job {
 					if err != nil {
 						return err
 					}
-					now, err := a.repository.CommitObject(head.Hash())
+					newCommit, err := a.repository.CommitObject(head.Hash())
 					if err != nil {
 						return err
 					}
 
-					lastTree, err := last.Tree()
+					oldTree, err := oldCommit.Tree()
 					if err != nil {
 						return err
 					}
-					nowTree, err := now.Tree()
+					newTree, err := newCommit.Tree()
 					if err != nil {
 						return err
 					}
 
-					t.Log.Debugf("Syncing deleted files: from commit %s to %s", last.Hash, now.Hash)
+					t.Log.Debugf("Syncing deleted files: from commit %s to %s", oldCommit.Hash, newCommit.Hash)
 
 					var toDelete []string
-					err = lastTree.Files().ForEach(func(f *object.File) error {
-						if _, err := nowTree.File(f.Name); errors.Is(err, object.ErrFileNotFound) {
+					err = oldTree.Files().ForEach(func(f *object.File) error {
+						if _, err := newTree.File(f.Name); errors.Is(err, object.ErrFileNotFound) {
 							t.Log.Debugf("File was in the old commit but does not exists in the new commit: %s", f.Name)
 							toDelete = append(toDelete, f.Name)
 						}
@@ -314,7 +311,7 @@ func (a *GitAdapter) Finalize() Job {
 					}
 
 					if len(toDelete) == 0 {
-						t.Log.Infof("No changes found between %s and %s", last.Hash, now.Hash)
+						t.Log.Infof("No changes found between %s and %s", oldCommit.Hash, newCommit.Hash)
 
 						return nil
 					}
