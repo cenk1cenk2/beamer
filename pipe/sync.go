@@ -163,7 +163,7 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 				return err
 			}
 
-			t.Log.Debugf("Directory needed in target: %s with %s in %s", target.Rel(), stat, target.Cwd())
+			t.Log.Debugf("Directory needed in target: %s with %s in %s", target.Rel(), stat.Mode().Perm(), target.Cwd())
 
 			return target.Mkdirp(stat.Mode())
 		})

@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/urfave/cli/v2"
@@ -288,57 +289,73 @@ func (a *GitAdapter) Finalize() Job {
 						return err
 					}
 
-					t.Log.Debugf("Syncing deleted files: from commit %s to %s", last.Hash, now.Hash)
-
-					diff, err := last.Patch(now)
+					lastTree, err := last.Tree()
+					if err != nil {
+						return err
+					}
+					nowTree, err := now.Tree()
 					if err != nil {
 						return err
 					}
 
-					patches := diff.FilePatches()
+					t.Log.Debugf("Syncing deleted files: from commit %s to %s", last.Hash, now.Hash)
 
-					if len(patches) == 0 {
+					var toDelete []string
+					err = lastTree.Files().ForEach(func(f *object.File) error {
+						if _, err := nowTree.File(f.Name); errors.Is(err, object.ErrFileNotFound) {
+							t.Log.Debugf("File was in the old commit but does not exists in the new commit: %s", f.Name)
+							toDelete = append(toDelete, f.Name)
+						}
+
+						return nil
+					})
+					if err != nil {
+						return err
+					}
+
+					if len(toDelete) == 0 {
 						t.Log.Infof("No changes found between %s and %s", last.Hash, now.Hash)
 
 						return nil
 					}
 
-					for _, file := range patches {
-						from, to := file.Files()
-						//nolint: nestif
-						if to == nil {
-							path, err := filepath.Rel(a.ctx.RootDirectory, fmt.Sprintf("/%s", from.Path()))
+					for _, file := range toDelete {
+						path, err := filepath.Rel(a.ctx.RootDirectory, fmt.Sprintf("/%s", file))
+						if err != nil {
+							return err
+						}
+
+						tf := operations.NewFile(a.ctx.TargetDirectory, path)
+
+						if slices.Contains(a.ctx.Flags.TemplateFiles, tf.Ext()) {
+							nf := operations.NewFile(a.ctx.TargetDirectory, strings.TrimSuffix(path, tf.Ext()))
+							t.Log.Debugf("This is a template file so path will be adjusted: %s -> %s", tf.Abs(), nf.Abs())
+							tf = nf
+						}
+
+						if !tf.Exists() {
+							t.Log.Warnf("File already does not exists: %s", tf.Abs())
+
+							return nil
+						}
+
+						if err := tf.Remove(); err != nil {
+							return err
+						}
+
+						t.Log.Warnf("File deleted: %s", tf.Abs())
+
+						ls, err := tf.ReadDir()
+						if err != nil {
+							return err
+						}
+						if len(ls) == 0 && a.ctx.Flags.SyncDeleteEmptyDirectories && tf.Cwd() != a.ctx.TargetDirectory {
+							err = os.Remove(tf.Cwd())
 							if err != nil {
 								return err
 							}
 
-							tf := operations.NewFile(a.ctx.TargetDirectory, path)
-
-							if slices.Contains(a.ctx.Flags.TemplateFiles, tf.Ext()) {
-								nf := operations.NewFile(a.ctx.TargetDirectory, strings.TrimSuffix(path, tf.Ext()))
-								t.Log.Debugf("This is a template file so path will be adjusted: %s -> %s", tf.Abs(), nf.Abs())
-								tf = nf
-							}
-
-							err = tf.Remove()
-							if err != nil {
-								t.Log.Warnf("File already did not exists: %s", tf.Abs())
-							} else {
-								t.Log.Warnf("File deleted: %s", tf.Abs())
-							}
-
-							ls, err := tf.ReadDir()
-							if err != nil {
-								return err
-							}
-							if len(ls) == 0 && a.ctx.Flags.SyncDeleteEmptyDirectories && tf.Cwd() != a.ctx.TargetDirectory {
-								err = os.Remove(tf.Cwd())
-								if err != nil {
-									return err
-								}
-
-								t.Log.Warnf("Empty directory deleted: %s", tf.Cwd())
-							}
+							t.Log.Warnf("Empty directory deleted: %s", tf.Cwd())
 						}
 					}
 
