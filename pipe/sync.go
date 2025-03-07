@@ -210,7 +210,7 @@ func processFile(t *Task[Pipe], path string) error {
 		}
 
 		// change the source file to the templated file
-		path := strings.TrimSuffix(path, sf.Ext())
+		path := strings.TrimSuffix(rel, sf.Ext())
 
 		temp, err := os.CreateTemp("", fmt.Sprintf("beamer-%s", filepath.Base(path)))
 		if err != nil {
