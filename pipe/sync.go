@@ -148,7 +148,7 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 	for _, dir := range dirs {
 		g.Go(func() error {
 			source := operations.NewFile(t.Pipe.WorkingDirectory, dir)
-			rel, err := filepath.Rel(t.Pipe.RootDirectory, dir)
+			rel, err := filepath.Rel(t.Pipe.RootDirectory, fmt.Sprintf("/%s", dir))
 			if err != nil {
 				return err
 			}
@@ -178,7 +178,7 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 
 func processFile(t *Task[Pipe], path string) error {
 	sf := operations.NewFile(t.Pipe.WorkingDirectory, path)
-	rel, err := filepath.Rel(t.Pipe.RootDirectory, path)
+	rel, err := filepath.Rel(t.Pipe.RootDirectory, fmt.Sprintf("/%s", path))
 	if err != nil {
 		return err
 	}

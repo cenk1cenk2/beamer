@@ -46,27 +46,10 @@ func New(p *Plumber) *TaskList[Pipe] {
 			return tl.RunJobs(Setup(tl).Job())
 		}).
 		Set(func(tl *TaskList[Pipe]) Job {
-			jobs := tl.JobIf(func(_ floc.Context) bool {
-				return !tl.Pipe.Ctx.LockFile.IsLocked()
-			},
-				tl.JobSequence(
-					tl.CreateBasicJob(func() error {
-						return tl.Pipe.Ctx.LockFile.Lock()
-					}),
-					a.Sync(),
-					Workflow(tl).Job(),
-					a.Finalize(),
-					tl.GuardAlways(
-						tl.CreateBasicJob(func() error {
-							return tl.Pipe.Ctx.LockFile.Unlock()
-						}),
-					),
-				),
-				tl.CreateBasicJob(func() error {
-					tl.Log.Warnf("Another process is running. Skipping this run.")
-
-					return nil
-				}),
+			jobs := tl.JobSequence(
+				a.Sync(),
+				Workflow(tl).Job(),
+				a.Finalize(),
 			)
 
 			return tl.JobSequence(
@@ -78,9 +61,7 @@ func New(p *Plumber) *TaskList[Pipe] {
 					tl.JobThen(jobs),
 					tl.JobElse(
 						tl.JobLoopWithWaitAfter(
-							tl.JobSequence(
-								jobs,
-							),
+							tl.GuardAlways(jobs),
 							tl.Pipe.Config.Interval,
 						),
 					),

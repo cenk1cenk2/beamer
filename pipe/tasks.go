@@ -56,11 +56,7 @@ func Setup(tl *TaskList[Pipe]) *Task[Pipe] {
 				return fmt.Errorf("File comparator %s is not supported", t.Pipe.Config.FileComparator)
 			}
 
-			t.Pipe.Ctx.LockFile = operations.NewLockFile(
-				t.Log.WithField(LOG_FIELD_CONTEXT, "locker"),
-				t.Pipe.TargetDirectory,
-				t.Pipe.Config.LockFile,
-			)
+			t.Pipe.Ctx.LockFile = operations.NewLockFile(t.Pipe.TargetDirectory, t.Pipe.Config.LockFile)
 			t.Log.Debugf("Lock file: %s", t.Pipe.Ctx.LockFile.Path())
 
 			return nil
