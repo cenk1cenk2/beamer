@@ -147,7 +147,7 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 
 	for _, dir := range dirs {
 		g.Go(func() error {
-			source := operations.NewFile(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory, dir)
+			source := operations.NewFile(t.Pipe.WorkingDirectory, dir)
 			target := operations.NewFile(t.Pipe.TargetDirectory, dir)
 
 			if !source.IsDir() {
@@ -173,7 +173,7 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 }
 
 func processFile(t *Task[Pipe], path string) error {
-	sf := operations.NewFile(t.Pipe.WorkingDirectory, t.Pipe.RootDirectory, path)
+	sf := operations.NewFile(t.Pipe.WorkingDirectory, path)
 	tf := operations.NewFile(t.Pipe.TargetDirectory, path)
 
 	t.Log.Debugf("Processing: %s -> %s", sf.Abs(), tf.Abs())
