@@ -41,5 +41,6 @@ Beam a configuration up to a container.
 | `$BEAMER_SYNC_DELETE` | Delete files that are not in the source. | `Bool` | `false` | false |
 | `$BEAMER_SYNC_DELETE_EMPTY_DIRECTORIES` | Delete empty directories after sync delete. | `Bool` | `false` | true |
 | `$BEAMER_STATE_FILE` | File to use for storing state. | `String` | `false` | .beamer |
+| `$BEAMER_LOCK_FILE` | File to use for locking the state. | `String` | `false` | .beamer.lock |
 | `$BEAMER_FILE_COMPARATOR` | File comparator to use. | `String`<br/>`enum([sha256 md5])` | `false` | md5 |
 | `$BEAMER_TEMPLATE_FILES` | Template file extensions that should be rendered. | `StringSlice` | `false` | ".tmpl", ".gotmpl" |
