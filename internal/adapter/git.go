@@ -19,12 +19,21 @@ import (
 	"gitlab.kilic.dev/docker/beamer/internal"
 	"gitlab.kilic.dev/docker/beamer/internal/operations"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
+	stdssh "golang.org/x/crypto/ssh"
 )
 
 type BeamerGitAuthMethod = string
 
 const (
 	BEAMER_GIT_AUTH_METHOD_SSH BeamerGitAuthMethod = "ssh"
+)
+
+type BeamerGitSshHostKeyVerification = string
+
+const (
+	BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_DEFAULT BeamerGitSshHostKeyVerification = "default"
+	BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_IGNORE  BeamerGitSshHostKeyVerification = "ignore"
+	BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_FIXED   BeamerGitSshHostKeyVerification = "fixed"
 )
 
 const category_git = "Adapter Git"
@@ -64,7 +73,7 @@ var GitAdapterFlags = []cli.Flag{
 
 	&cli.StringFlag{
 		Category:    category_git,
-		Name:        "git-private-key",
+		Name:        "git-ssh-private-key",
 		Usage:       "Private key to use for SSH authentication.",
 		Required:    false,
 		Value:       "",
@@ -74,21 +83,46 @@ var GitAdapterFlags = []cli.Flag{
 
 	&cli.StringFlag{
 		Category:    category_git,
-		Name:        "git-private-key-password",
+		Name:        "git-ssh-private-key-password",
 		Usage:       "Password for the private key.",
 		Required:    false,
 		Value:       "",
 		EnvVars:     []string{"BEAMER_GIT_PRIVATE_KEY_PASSWORD"},
 		Destination: &gitAdapterFlags.SshPrivateKeyPassword,
 	},
+
+	&cli.StringFlag{
+		Category: category_git,
+		Name:     "git-ssh-host-key-verification",
+		Usage: fmt.Sprintf(
+			"Host key verification method. enum(%v)",
+			[]string{BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_DEFAULT, BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_IGNORE, BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_FIXED},
+		),
+		Required:    false,
+		Value:       "default",
+		EnvVars:     []string{"BEAMER_GIT_SSH_HOST_KEY_VERIFICATION"},
+		Destination: &gitAdapterFlags.SshHostKeyVerification,
+	},
+
+	&cli.StringFlag{
+		Category:    category_git,
+		Name:        "git-ssh-host-key",
+		Usage:       "Host key to use for fixed host key verification.",
+		Required:    false,
+		Value:       "",
+		EnvVars:     []string{"BEAMER_GIT_SSH_HOST_KEY"},
+		Destination: &gitAdapterFlags.SshHostKey,
+	},
 }
 
 type GitAdapterConfig struct {
-	Repository            string `validate:"required"`
-	Branch                string
-	AuthMethod            BeamerGitAuthMethod `validate:"oneof=none ssh"`
-	SshPrivateKey         string              `validate:"required_if=Inner.AuthMethod ssh"`
-	SshPrivateKeyPassword string
+	Repository             string `validate:"required"`
+	Branch                 string
+	AuthMethod             BeamerGitAuthMethod `validate:"oneof=none ssh"`
+	SshPrivateKey          string              `validate:"required_if=Inner.AuthMethod ssh"`
+	SshPrivateKeyPassword  string
+	SshHostKeyVerification string `validate:"oneof=default ignore fixed"`
+	SshHostKey             string `validate:"required_if=Inner.SshHostKeyVerification fixed"`
 }
 
 type GitAdapter struct {
@@ -145,6 +179,29 @@ func NewGitAdapter(p *Plumber, ctx *internal.ServiceCtx) (*GitAdapter, error) {
 		if err != nil {
 			return nil, err
 		}
+		switch gitAdapterFlags.SshHostKeyVerification {
+		case BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_IGNORE:
+			//nolint: gosec
+			am.HostKeyCallback = stdssh.InsecureIgnoreHostKey()
+
+			ctx.Log.Warnln("Host key verification is disabled.")
+		case BEAMER_GIT_SSH_HOST_KEY_VERIFICATION_FIXED:
+			v, err := base64.StdEncoding.DecodeString(gitAdapterFlags.SshHostKey)
+			if err != nil {
+				return nil, err
+			}
+
+			key, err := stdssh.ParsePublicKey(v)
+			if err != nil {
+				return nil, err
+			}
+
+			am.HostKeyCallback = stdssh.FixedHostKey(key)
+			ctx.Log.Infof("Host key verification is fixed.")
+		default:
+			ctx.Log.Infof("Host key verification is using known hosts.")
+		}
+
 		adapter.authMethod = am
 	}
 

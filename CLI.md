@@ -15,6 +15,8 @@ Beam a configuration up to a container.
 | `$BEAMER_GIT_AUTH_METHOD` | Authentication method to use. | `String`<br/>`enum(none, ssh)` | `false` | none |
 | `$BEAMER_GIT_SSH_PRIVATE_KEY` | Private key to use for SSH authentication. | `String` | `false` |  |
 | `$BEAMER_GIT_PRIVATE_KEY_PASSWORD` | Password for the private key. | `String` | `false` |  |
+| `$BEAMER_GIT_SSH_HOST_KEY_VERIFICATION` | Host key verification method. | `String`<br/>`enum([default ignore fixed])` | `false` | default |
+| `$BEAMER_GIT_SSH_HOST_KEY` | Host key to use for fixed host key verification. | `String` | `false` |  |
 
 **CLI**
 
