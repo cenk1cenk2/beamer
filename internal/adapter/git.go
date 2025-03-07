@@ -310,7 +310,7 @@ func (a *GitAdapter) Finalize() Job {
 		Set(func(t *Task[any]) error {
 			t.CreateSubtask("sync", "delete").
 				ShouldDisable(func(_ *Task[any]) bool {
-					return !a.ctx.Flags.ForceSync && (!a.ctx.Flags.SyncDelete || !a.ctx.State.IsDirty())
+					return !(a.ctx.Flags.ForceSync || (a.ctx.Flags.SyncDelete && a.ctx.State.IsDirty()))
 				}).
 				Set(func(t *Task[any]) error {
 					f, err := a.ctx.State.Read()
