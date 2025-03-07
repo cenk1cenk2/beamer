@@ -109,6 +109,12 @@ func (f *File) WriteFile(data []byte, perm os.FileMode) error {
 	return os.WriteFile(f.Abs(), data, perm)
 }
 
+func (f *File) Touch() error {
+	_, err := os.Create(f.Abs())
+
+	return err
+}
+
 func (f *File) MatchModeWith(target *File) error {
 	ts, err := target.Stat()
 	if err != nil {

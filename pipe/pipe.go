@@ -22,6 +22,7 @@ type (
 		Adapter        Adapter `validate:"required,oneof=git"`
 		Once           bool
 		StateFile      string
+		LockFile       string
 		Interval       time.Duration
 		IgnoreFile     string
 		ForceWorkflow  bool
@@ -45,10 +46,27 @@ func New(p *Plumber) *TaskList[Pipe] {
 			return tl.RunJobs(Setup(tl).Job())
 		}).
 		Set(func(tl *TaskList[Pipe]) Job {
-			jobs := tl.JobSequence(
-				a.Sync(),
-				Workflow(tl).Job(),
-				a.Finalize(),
+			jobs := tl.JobIf(func(_ floc.Context) bool {
+				return !tl.Pipe.Ctx.LockFile.IsLocked()
+			},
+				tl.JobSequence(
+					tl.CreateBasicJob(func() error {
+						return tl.Pipe.Ctx.LockFile.Lock()
+					}),
+					a.Sync(),
+					Workflow(tl).Job(),
+					a.Finalize(),
+					tl.GuardAlways(
+						tl.CreateBasicJob(func() error {
+							return tl.Pipe.Ctx.LockFile.Unlock()
+						}),
+					),
+				),
+				tl.CreateBasicJob(func() error {
+					tl.Log.Warnf("Another process is running. Skipping this run.")
+
+					return nil
+				}),
 			)
 
 			return tl.JobSequence(

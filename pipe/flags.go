@@ -142,6 +142,16 @@ var Flags = CombineFlags(
 
 		&cli.StringFlag{
 			Category:    CATEGORY_CONFIG,
+			Name:        "lock-file",
+			Usage:       "File to use for locking the state.",
+			Required:    true,
+			Value:       ".beamer.lock",
+			EnvVars:     []string{"BEAMER_LOCK_FILE"},
+			Destination: &TL.Pipe.Config.LockFile,
+		},
+
+		&cli.StringFlag{
+			Category:    CATEGORY_CONFIG,
 			Name:        "file-comparator",
 			Usage:       fmt.Sprintf("File comparator to use. enum(%v)", []string{comparator.COMPARATOR_SHA256, comparator.COMPARATOR_MD5}),
 			Required:    false,
