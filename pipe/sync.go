@@ -148,7 +148,11 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 	for _, dir := range dirs {
 		g.Go(func() error {
 			source := operations.NewFile(t.Pipe.WorkingDirectory, dir)
-			target := operations.NewFile(t.Pipe.TargetDirectory, dir)
+			rel, err := filepath.Rel(t.Pipe.RootDirectory, dir)
+			if err != nil {
+				return err
+			}
+			target := operations.NewFile(t.Pipe.TargetDirectory, rel)
 
 			if !source.IsDir() {
 				return fmt.Errorf("Source is not a directory anymore: %s", source.Abs())
@@ -174,7 +178,11 @@ func ensureDirs(t *Task[Pipe], files []string) error {
 
 func processFile(t *Task[Pipe], path string) error {
 	sf := operations.NewFile(t.Pipe.WorkingDirectory, path)
-	tf := operations.NewFile(t.Pipe.TargetDirectory, path)
+	rel, err := filepath.Rel(t.Pipe.RootDirectory, path)
+	if err != nil {
+		return err
+	}
+	tf := operations.NewFile(t.Pipe.TargetDirectory, rel)
 
 	t.Log.Debugf("Processing: %s -> %s", sf.Abs(), tf.Abs())
 
