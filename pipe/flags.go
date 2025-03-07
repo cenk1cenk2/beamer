@@ -144,7 +144,7 @@ var Flags = CombineFlags(
 			Category:    CATEGORY_CONFIG,
 			Name:        "lock-file",
 			Usage:       "File to use for locking the state.",
-			Required:    true,
+			Required:    false,
 			Value:       ".beamer.lock",
 			EnvVars:     []string{"BEAMER_LOCK_FILE"},
 			Destination: &TL.Pipe.Config.LockFile,
