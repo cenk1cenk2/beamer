@@ -356,7 +356,11 @@ func (a *GitAdapter) Finalize() Job {
 
 					var toDelete []string
 					err = oldTree.Files().ForEach(func(f *object.File) error {
-						if _, err := newTree.File(f.Name); errors.Is(err, object.ErrFileNotFound) {
+						if a.ctx.RootDirectory != "" && !strings.HasPrefix(f.Name, fmt.Sprintf("%s/", a.ctx.RootDirectory)) {
+							t.Log.Debugf("File is not in the root directory: %s", f.Name)
+
+							return nil
+						} else if _, err := newTree.File(f.Name); errors.Is(err, object.ErrFileNotFound) {
 							t.Log.Debugf("File was in the old commit but does not exists in the new commit: %s", f.Name)
 							toDelete = append(toDelete, f.Name)
 						}
