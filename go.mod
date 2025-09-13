@@ -8,7 +8,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/sirupsen/logrus v1.9.3
-	github.com/urfave/cli/v2 v2.27.7
+	github.com/urfave/cli/v3 v3.4.1
 	github.com/workanator/go-floc/v3 v3.0.1
 	gitlab.kilic.dev/libraries/plumber/v5 v5.6.6
 	golang.org/x/crypto v0.42.0
@@ -40,6 +40,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
+	github.com/urfave/cli/v2 v2.27.6 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	gitlab.kilic.dev/libraries/go-broadcaster v1.1.3 // indirect

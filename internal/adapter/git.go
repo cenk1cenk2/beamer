@@ -15,7 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"gitlab.kilic.dev/docker/beamer/internal"
 	"gitlab.kilic.dev/docker/beamer/internal/operations"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
