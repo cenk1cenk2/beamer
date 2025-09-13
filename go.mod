@@ -10,7 +10,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/workanator/go-floc/v3 v3.0.1
-	gitlab.kilic.dev/libraries/plumber/v5 v5.6.6
+	gitlab.kilic.dev/libraries/plumber/v6 v6.1.1
 	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
 )
