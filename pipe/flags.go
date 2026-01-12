@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"gitlab.kilic.dev/docker/beamer/internal/adapter"
 	"gitlab.kilic.dev/docker/beamer/internal/comparator"
 	. "gitlab.kilic.dev/libraries/plumber/v5"
