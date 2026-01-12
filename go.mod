@@ -2,17 +2,17 @@ module gitlab.kilic.dev/docker/beamer
 
 go 1.24.4
 
-toolchain go1.25.1
+toolchain go1.25.5
 
 require (
-	github.com/bmatcuk/doublestar/v4 v4.9.1
-	github.com/go-git/go-git/v5 v5.16.2
+	github.com/bmatcuk/doublestar/v4 v4.9.2
+	github.com/go-git/go-git/v5 v5.16.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/workanator/go-floc/v3 v3.0.1
 	gitlab.kilic.dev/libraries/plumber/v5 v5.6.6
-	golang.org/x/crypto v0.42.0
-	golang.org/x/sync v0.17.0
+	golang.org/x/crypto v0.47.0
+	golang.org/x/sync v0.19.0
 )
 
 require (
@@ -45,8 +45,8 @@ require (
 	gitlab.kilic.dev/libraries/go-broadcaster v1.1.3 // indirect
 	gitlab.kilic.dev/libraries/go-utils/v2 v2.1.3 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
